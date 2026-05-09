@@ -1,0 +1,150 @@
+import pygame
+import sys
+
+pygame.init()
+
+SCREEN_WIDTH = 800
+SCREEN_HEIGHT = 600
+FPS = 60
+
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+pygame.display.set_caption("el douggation vs the alien racket")
+clock = pygame.time.Clock()
+
+WHITE = (255, 255, 255)
+GREEN = (106, 190, 48)
+DARK_GREEN = (60, 120, 60)
+BLACK = (0, 0, 0)
+GRAY = (210, 210, 210)
+
+ball_radius = 10
+ball_pos = [SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2]
+ball_vel = [6, 4]
+
+player_width = 24
+player_height = 120
+player_x = 40
+player_y = SCREEN_HEIGHT // 2 - player_height // 2
+player_speed = 7
+
+ai_width = 12
+ai_height = 120
+ai_x = SCREEN_WIDTH - 40 - ai_width
+ai_y = SCREEN_HEIGHT // 2 - ai_height // 2
+ai_speed = 5
+
+player_score = 0
+ai_score = 0
+FONT = pygame.font.SysFont(None, 48)
+
+
+def draw_alien_racket(surface, x, y, height):
+    center_x = x + player_width // 2
+    head_radius = 20
+    body_top = y + 28
+
+    pygame.draw.line(surface, DARK_GREEN, (x + 6, y + 20), (x + 6, y + height - 14), 5)
+    pygame.draw.line(surface, DARK_GREEN, (x + 6, y + 40), (x + 50, y + 40), 7)
+    pygame.draw.line(surface, DARK_GREEN, (x + 50, y + 40), (x + 60, y + 25), 7)
+
+    racket_rect = pygame.Rect(x + 50, y + 35, 14, 40)
+    pygame.draw.rect(surface, WHITE, racket_rect)
+    pygame.draw.circle(surface, WHITE, (x + 57, y + 78), 11, 4)
+
+    pygame.draw.circle(surface, GREEN, (center_x, y + 8), head_radius)
+    pygame.draw.circle(surface, BLACK, (center_x - 8, y + 5), 5)
+    pygame.draw.circle(surface, BLACK, (center_x + 8, y + 5), 5)
+    pygame.draw.arc(surface, BLACK, (center_x - 12, y + 12, 24, 16), 3.14, 0, 3)
+    pygame.draw.rect(surface, GREEN, (x - 7, body_top, 28, 40), border_radius=12)
+
+
+def draw_center_line(surface):
+    for y in range(0, SCREEN_HEIGHT, 30):
+        pygame.draw.line(surface, GRAY, (SCREEN_WIDTH // 2, y), (SCREEN_WIDTH // 2, y + 15), 3)
+
+
+def reset_ball(direction=1):
+    global ball_pos, ball_vel
+    ball_pos = [SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2]
+    ball_vel = [direction * 6, 4 if direction > 0 else -4]
+
+
+def clamp(value, min_value, max_value):
+    return max(min_value, min(value, max_value))
+
+
+def draw_score(surface):
+    player_text = FONT.render(str(player_score), True, WHITE)
+    ai_text = FONT.render(str(ai_score), True, WHITE)
+    surface.blit(player_text, (SCREEN_WIDTH // 4 - player_text.get_width() // 2, 20))
+    surface.blit(ai_text, (SCREEN_WIDTH * 3 // 4 - ai_text.get_width() // 2, 20))
+
+
+def main():
+    global player_y, ai_y, ball_pos, ball_vel, player_score, ai_score
+
+    running = True
+    while running:
+        clock.tick(FPS)
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    running = False
+
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_UP]:
+            player_y -= player_speed
+        if keys[pygame.K_DOWN]:
+            player_y += player_speed
+
+        player_y = clamp(player_y, 0, SCREEN_HEIGHT - player_height)
+
+        if ball_pos[1] - ball_radius <= 0 or ball_pos[1] + ball_radius >= SCREEN_HEIGHT:
+            ball_vel[1] = -ball_vel[1]
+
+        ball_pos[0] += ball_vel[0]
+        ball_pos[1] += ball_vel[1]
+
+        if ball_pos[0] - ball_radius <= player_x + player_width:
+            if player_y <= ball_pos[1] <= player_y + player_height:
+                ball_vel[0] = -ball_vel[0]
+                offset = (ball_pos[1] - (player_y + player_height / 2)) / (player_height / 2)
+                ball_vel[1] = 6 * offset
+            elif ball_pos[0] < 0:
+                ai_score += 1
+                reset_ball(direction=1)
+
+        if ball_pos[0] + ball_radius >= ai_x:
+            if ai_y <= ball_pos[1] <= ai_y + ai_height:
+                ball_vel[0] = -ball_vel[0]
+                offset = (ball_pos[1] - (ai_y + ai_height / 2)) / (ai_height / 2)
+                ball_vel[1] = 6 * offset
+            elif ball_pos[0] > SCREEN_WIDTH:
+                player_score += 1
+                reset_ball(direction=-1)
+
+        if ai_y + ai_height / 2 < ball_pos[1] - 10:
+            ai_y += ai_speed
+        elif ai_y + ai_height / 2 > ball_pos[1] + 10:
+            ai_y -= ai_speed
+        ai_y = clamp(ai_y, 0, SCREEN_HEIGHT - ai_height)
+
+        screen.fill(BLACK)
+        draw_center_line(screen)
+        draw_alien_racket(screen, player_x, player_y, player_height)
+        pygame.draw.rect(screen, WHITE, (ai_x, ai_y, ai_width, ai_height))
+        pygame.draw.circle(screen, WHITE, (int(ball_pos[0]), int(ball_pos[1])), ball_radius)
+        draw_score(screen)
+
+        pygame.display.flip()
+
+    pygame.quit()
+    sys.exit()
+
+
+if __name__ == "__main__":
+    main()
+

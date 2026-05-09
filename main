@@ -1,1 +1,112 @@
+import pygame
+import math
+import random
 
+# Initialize Pygame
+pygame.init()
+
+# Screen dimensions
+WIDTH, HEIGHT = 800, 600
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Hyperfine")
+
+# Colors
+BLACK = (0, 0, 0)
+WHITE = (255, 255, 255)
+RED = (255, 0, 0)
+BLUE = (0, 0, 255)
+GREEN = (0, 255, 0)
+
+# Clock
+clock = pygame.time.Clock()
+FPS = 60
+
+# Frequencies (Hz)
+GUIDE_FREQ = 1.0  # Base frequency for guide
+PLAYER_FREQ = random.uniform(0.5, 1.5)  # Start with random
+
+# Positions
+CENTER_X, CENTER_Y = WIDTH // 2, HEIGHT // 2
+CIRCLE_RADIUS = 50
+DISTANCE = 200
+
+# Game state
+level = 1
+synced = False
+
+# Time
+start_time = pygame.time.get_ticks() / 1000.0
+
+def get_time():
+    return pygame.time.get_ticks() / 1000.0 - start_time
+
+def draw_circle(x, y, freq, color, radius_base=CIRCLE_RADIUS):
+    t = get_time()
+    pulse = math.sin(2 * math.pi * freq * t)
+    radius = radius_base + 20 * pulse
+    pygame.draw.circle(screen, color, (int(x), int(y)), int(radius), 2)
+
+def draw_interference(x1, y1, x2, y2, freq_diff):
+    if abs(freq_diff) < 0.1:
+        return  # Synced
+    # Draw jagged lines
+    points = []
+    for i in range(0, 101, 10):
+        t = i / 100.0
+        x = x1 + t * (x2 - x1)
+        y = y1 + t * (y2 - y1)
+        noise = random.randint(-10, 10) * (abs(freq_diff) / 0.5)
+        points.append((int(x + noise), int(y + noise)))
+    if len(points) > 1:
+        pygame.draw.lines(screen, WHITE, False, points, 1)
+
+def check_sync():
+    global synced
+    freq_diff = abs(GUIDE_FREQ - PLAYER_FREQ)
+    if freq_diff < 0.05:
+        synced = True
+    else:
+        synced = False
+
+def draw_torus():
+    # Simple torus representation
+    pygame.draw.circle(screen, GREEN, (CENTER_X, CENTER_Y), 80, 5)
+    pygame.draw.circle(screen, GREEN, (CENTER_X, CENTER_Y), 40, 5)
+
+# Main loop
+running = True
+while running:
+    screen.fill(BLACK)
+
+    # Event handling
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_UP:
+                PLAYER_FREQ += 0.1
+            elif event.key == pygame.K_DOWN:
+                PLAYER_FREQ -= 0.1
+
+    # Draw guide circle
+    guide_x = CENTER_X - DISTANCE // 2
+    guide_y = CENTER_Y
+    draw_circle(guide_x, guide_y, GUIDE_FREQ, BLUE)
+
+    # Draw player circle
+    player_x = CENTER_X + DISTANCE // 2
+    player_y = CENTER_Y
+    draw_circle(player_x, player_y, PLAYER_FREQ, RED)
+
+    # Check sync
+    check_sync()
+
+    if synced:
+        draw_torus()
+    else:
+        draw_interference(guide_x, guide_y, player_x, player_y, GUIDE_FREQ - PLAYER_FREQ)
+
+    pygame.display.flip()
+    clock.tick(FPS)
+
+pygame.quit()
